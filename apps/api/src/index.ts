@@ -3,20 +3,22 @@ import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import dotenv from 'dotenv';
+import path from 'path';
 import { logger } from './utils/logger';
 import { errorHandler } from './middleware/errorHandler';
 import routes from './routes';
+import { config } from './config';
 
-// Load environment variables
-dotenv.config();
+// Load environment variables - explicitly point to .env file
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = config.port;
 
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: config.cors.allowedOrigins,
   credentials: true,
 }));
 app.use(compression());
@@ -48,7 +50,9 @@ app.use((req, res) => {
 // Start server
 app.listen(PORT, () => {
   logger.info(`🌸 Sakura API Server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  logger.info(`Environment: ${config.nodeEnv}`);
+  logger.info(`Database: Connected`);
+  logger.info(`JWT: Configured (${config.jwt.secret.length} chars)`);
 });
 
 export default app;

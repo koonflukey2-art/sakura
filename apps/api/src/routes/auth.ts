@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma, UserRole, UserStatus } from '@sakura/database';
 import { AppError } from '../middleware/errorHandler';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { config } from '../config';
 
 const router = Router();
 
@@ -102,9 +103,9 @@ router.post('/login', async (req, res, next) => {
         email: user.email,
         role: user.role,
       },
-      process.env.JWT_SECRET!,
+      config.jwt.secret,
       {
-        expiresIn: process.env.JWT_EXPIRES_IN || '7d',
+        expiresIn: config.jwt.expiresIn,
       }
     );
 

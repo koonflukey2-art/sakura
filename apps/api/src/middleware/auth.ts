@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { UserRole } from '@sakura/database';
 import { AppError } from './errorHandler';
+import { config } from '../config';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -19,7 +20,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
       throw new AppError(401, 'Authentication required');
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
+    const decoded = jwt.verify(token, config.jwt.secret) as {
       id: string;
       email: string;
       role: UserRole;
