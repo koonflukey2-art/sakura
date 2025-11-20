@@ -20,7 +20,10 @@ import {
   Target,
   AlertCircle,
   MessageSquare,
+  Settings as SettingsIcon,
+  ArrowRight,
 } from 'lucide-react';
+import Link from 'next/link';
 
 interface Message {
   role: 'user' | 'ai';
@@ -215,6 +218,11 @@ export default function AICenterPage() {
     }
   };
 
+  // Check if user has API keys
+  const hasOpenAI = !!localStorage.getItem('openai_api_key');
+  const hasGemini = !!localStorage.getItem('gemini_api_key');
+  const hasAnyKey = hasOpenAI || hasGemini;
+
   return (
     <div className="h-[calc(100vh-8rem)] space-y-6">
       {/* Header */}
@@ -270,6 +278,73 @@ export default function AICenterPage() {
           </div>
         </div>
       </div>
+
+      {/* API Key Warning */}
+      {!hasAnyKey && (
+        <div className="rounded-xl border-2 border-orange-200 bg-gradient-to-br from-orange-50 to-yellow-50 p-6 shadow-lg">
+          <div className="flex items-start gap-4">
+            <div className="rounded-full bg-orange-500 p-3">
+              <AlertCircle className="text-white" size={24} />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg font-bold text-orange-900">
+                ⚠️ ยังไม่ได้ตั้งค่า API Key
+              </h3>
+              <p className="mt-2 text-sm text-orange-800">
+                คุณต้องตั้งค่า API Key สำหรับ OpenAI หรือ Google Gemini ก่อนที่จะใช้ AI Center
+                <br />
+                ไปที่หน้า <strong>ตั้งค่า AI</strong> เพื่อเพิ่ม API Key ของคุณ
+              </p>
+              <Link
+                href="/dashboard/settings"
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 px-6 py-3 font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:shadow-xl"
+              >
+                <SettingsIcon size={20} />
+                ไปตั้งค่า API Key
+                <ArrowRight size={20} />
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Specific Provider Warning */}
+      {hasAnyKey && (
+        <>
+          {provider === 'gpt' && !hasOpenAI && (
+            <div className="rounded-xl border-2 border-yellow-200 bg-gradient-to-br from-yellow-50 to-amber-50 p-4 shadow-md">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-yellow-600 flex-shrink-0" size={20} />
+                <div className="flex-1">
+                  <p className="text-sm text-yellow-900">
+                    <strong>ไม่พบ OpenAI API Key</strong> - กรุณาตั้งค่าใน{' '}
+                    <Link href="/dashboard/settings" className="underline font-semibold hover:text-yellow-700">
+                      หน้าตั้งค่า
+                    </Link>{' '}
+                    หรือเปลี่ยนไปใช้ Gemini แทน
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          {provider === 'gemini' && !hasGemini && (
+            <div className="rounded-xl border-2 border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-4 shadow-md">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="text-purple-600 flex-shrink-0" size={20} />
+                <div className="flex-1">
+                  <p className="text-sm text-purple-900">
+                    <strong>ไม่พบ Gemini API Key</strong> - กรุณาตั้งค่าใน{' '}
+                    <Link href="/dashboard/settings" className="underline font-semibold hover:text-purple-700">
+                      หน้าตั้งค่า
+                    </Link>{' '}
+                    หรือเปลี่ยนไปใช้ GPT แทน
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Main Chat Area */}

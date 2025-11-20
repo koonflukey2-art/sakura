@@ -45,17 +45,21 @@ interface Notification {
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, isAuthenticated, logout, _hasHydrated } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifications, setShowNotifications] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    // รอให้ hydrate เสร็จก่อน
+    if (!_hasHydrated) return;
+
+    // ถ้า hydrate เสร็จแล้วและไม่ได้ล็อกอิน ให้ redirect ไป login
     if (!isAuthenticated) {
       router.push('/login');
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, _hasHydrated, router]);
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -115,6 +119,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       toast.error('ไม่สามารถลบการแจ้งเตือนได้');
     }
   };
+
+  // แสดง loading ระหว่างรอ hydrate state จาก localStorage
+  if (!_hasHydrated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sakura-50 to-sakura-100">
+        <div className="text-center">
+          <div className="mb-4 text-6xl">🌸</div>
+          <div className="text-xl font-semibold text-sakura-600">กำลังโหลด...</div>
+        </div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated || !user) {
     return null;
