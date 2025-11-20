@@ -1,17 +1,26 @@
-# Sakura - Business Management Platform
+# 🌸 Sakura - Business Management Platform
 
-ระบบจัดการธุรกิจแบบครบวงจร พร้อม AI ช่วยวิเคราะห์
+> **ระบบจัดการธุรกิจแบบครบวงจร พร้อม AI ช่วยวิเคราะห์**
 
-## Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
 
-- 🔐 **ระบบสมาชิก & สิทธิ์** - Role-based access control (Admin, Staff, Viewer)
-- 📦 **จัดการสต๊อก** - ระบบบริหารสินค้าคงคลัง พร้อมแจ้งเตือนสต๊อกใกล้หมด
-- 💰 **ระบบงบประมาณ** - ขออนุมัติและอนุมัติงบประมาณ
-- 🛒 **ระบบขาย** - จัดการออเดอร์และลูกค้า แยกลูกค้าใหม่-เก่า
-- 📊 **Analytics** - กราฟกำไร/ขาดทุน รายวัน/สัปดาห์/เดือน/ปี
-- 🤖 **AI Integration** - Gemini/GPT ช่วยวิเคราะห์และแนะนำ
-- 🔔 **Notification** - ระบบแจ้งเตือนแบบ Real-time
-- 📱 **Responsive** - รองรับทั้ง Desktop และ Mobile
+---
+
+## ✨ Features
+
+### 🎯 Core Features
+
+- **🔐 ระบบสมาชิก & สิทธิ์**: แบ่งยศตาม Role (ADMIN, STAFF_STOCK, STAFF_MARKETING, VIEWER)
+- **📦 จัดการสต๊อก**: ติดตามสินค้าคงคลัง พร้อมแจ้งเตือนเมื่อสินค้าใกล้หมด
+- **💰 จัดการงบประมาณ**: ระบบขออนุมัติงบ พร้อมการอนุมัติจาก Admin
+- **🛒 จัดการคำสั่งซื้อ**: บันทึกและติดตามออเดอร์ เชื่อมกับสต๊อกอัตโนมัติ
+- **👥 จัดการลูกค้า**: แยกลูกค้าใหม่/เก่า ติดตามประวัติการซื้อ
+- **📊 Analytics & Reports**: วิเคราะห์กำไร/ขาดทุน ยอดขาย ROI แคมเปญ
+- **📢 ระบบแจ้งเตือน**: แจ้งเตือนเมื่อมีคำขอใช้งบ สต๊อกหมด หรือระบบขาดทุน
+- **🤖 AI ช่วยวิเคราะห์**: คำแนะนำจาก AI สำหรับปรับปรุงธุรกิจ
+- **📱 Responsive Design**: รองรับทั้ง Desktop และ Mobile
 
 ## Tech Stack
 
@@ -56,18 +65,30 @@ sakura/
 ### Installation
 
 ```bash
-# Install dependencies
+# 1. Clone repository
+git clone <your-repo-url>
+cd sakura
+
+# 2. Install dependencies
 pnpm install
 
-# Setup database
-cd packages/database
-cp .env.example .env
-# Edit .env with your database credentials
-pnpm prisma migrate dev
+# 3. Setup environment variables
+# - Copy apps/api/.env.example to apps/api/.env
+# - Copy packages/database/.env.example to packages/database/.env
+# - Add your Neon DATABASE_URL
 
-# Start development
+# 4. Push database schema
+cd packages/database
+pnpm db:push
+
+# 5. Start development
+cd ../..
 pnpm dev
 ```
+
+**Access:**
+- Frontend: http://localhost:9002
+- Backend API: http://localhost:3001
 
 ### Environment Variables
 
@@ -113,6 +134,31 @@ API documentation is available at `http://localhost:3001/api-docs` when running 
 
 See `packages/database/prisma/schema.prisma` for the complete database schema.
 
-## License
+---
 
-MIT
+## 📚 Documentation
+
+- **[SETUP.md](./SETUP.md)** - คู่มือติดตั้งและใช้งานแบบละเอียด
+- **[DEVELOPMENT.md](./DEVELOPMENT.md)** - สำหรับนักพัฒนา
+
+---
+
+## 🤝 Contributing
+
+เรายินดีรับ Contributions จากทุกคน!
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+---
+
+## 📄 License
+
+MIT License - see the [LICENSE](./LICENSE) file for details.
+
+---
+
+**Made with ❤️ by Sakura Team**
