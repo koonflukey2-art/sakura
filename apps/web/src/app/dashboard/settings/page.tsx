@@ -1,117 +1,119 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save, Key, Sparkles, AlertCircle } from 'lucide-react';
+import { Save, Key, Sparkles, AlertCircle, TestTube } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { toast } from 'sonner';
 
 export default function SettingsPage() {
   const { token } = useAuthStore();
   const [loading, setLoading] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState('');
+  const [testing, setTesting] = useState<'openai' | 'gemini' | null>(null);
 
   // API Keys state
   const [openaiKey, setOpenaiKey] = useState('');
   const [geminiKey, setGeminiKey] = useState('');
+  const [hasOpenai, setHasOpenai] = useState(false);
+  const [hasGemini, setHasGemini] = useState(false);
 
   useEffect(() => {
-    // Load existing keys from localStorage
-    const savedOpenAI = localStorage.getItem('openai_api_key') || '';
-    const savedGemini = localStorage.getItem('gemini_api_key') || '';
-    setOpenaiKey(savedOpenAI);
-    setGeminiKey(savedGemini);
+    fetchApiKeys();
   }, []);
+
+  const fetchApiKeys = async () => {
+    try {
+      const response = await fetch('http://localhost:3001/api/settings/api-keys', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch API keys');
+      }
+
+      const data = await response.json();
+      setOpenaiKey(data.openai || '');
+      setGeminiKey(data.gemini || '');
+      setHasOpenai(data.hasOpenai);
+      setHasGemini(data.hasGemini);
+    } catch (error: any) {
+      console.error('Error fetching API keys:', error);
+      toast.error('ไม่สามารถโหลด API keys ได้');
+    }
+  };
 
   const handleSave = async () => {
     setLoading(true);
-    setError('');
-    setSaved(false);
 
     try {
-      // Save to localStorage
-      if (openaiKey) {
-        localStorage.setItem('openai_api_key', openaiKey);
-      } else {
-        localStorage.removeItem('openai_api_key');
+      const response = await fetch('http://localhost:3001/api/settings/api-keys', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          openaiKey: openaiKey && !openaiKey.includes('...') ? openaiKey : undefined,
+          geminiKey: geminiKey && !geminiKey.includes('...') ? geminiKey : undefined,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save API keys');
       }
 
-      if (geminiKey) {
-        localStorage.setItem('gemini_api_key', geminiKey);
-      } else {
-        localStorage.removeItem('gemini_api_key');
-      }
+      const data = await response.json();
+      toast.success(data.message || 'บันทึก API Keys สำเร็จ!');
 
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'เกิดข้อผิดพลาดในการบันทึก');
+      // Reload the keys to show masked versions
+      await fetchApiKeys();
+    } catch (error: any) {
+      console.error('Error saving API keys:', error);
+      toast.error(error.message || 'เกิดข้อผิดพลาดในการบันทึก');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleTestOpenAI = async () => {
-    if (!openaiKey) {
-      alert('กรุณาใส่ OpenAI API Key');
+  const handleTest = async (provider: 'openai' | 'gemini') => {
+    const apiKey = provider === 'openai' ? openaiKey : geminiKey;
+
+    // Check if key is empty or masked
+    if (!apiKey || apiKey.includes('...')) {
+      toast.error(`กรุณาใส่ ${provider === 'openai' ? 'OpenAI' : 'Gemini'} API Key ที่ถูกต้อง`);
       return;
     }
 
-    try {
-      setLoading(true);
-      const response = await api.post(
-        '/ai/execute',
-        {
-          provider: 'gpt',
-          page: 'settings',
-          action: 'test',
-          customPrompt: 'ทดสอบการเชื่อมต่อ กรุณาตอบกลับว่า "ระบบทำงานปกติ" เป็นภาษาไทย',
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'X-OpenAI-Key': openaiKey,
-          },
-        }
-      );
-
-      alert('✅ ทดสอบสำเร็จ!\n\n' + response.data.response);
-    } catch (err: any) {
-      alert('❌ ทดสอบล้มเหลว: ' + (err.response?.data?.message || err.message));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleTestGemini = async () => {
-    if (!geminiKey) {
-      alert('กรุณาใส่ Gemini API Key');
-      return;
-    }
+    setTesting(provider);
 
     try {
-      setLoading(true);
-      const response = await api.post(
-        '/ai/execute',
-        {
-          provider: 'gemini',
-          page: 'settings',
-          action: 'test',
-          customPrompt: 'ทดสอบการเชื่อมต่อ กรุณาตอบกลับว่า "ระบบทำงานปกติ" เป็นภาษาไทย',
+      const response = await fetch('http://localhost:3001/api/settings/test-api-keys', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'X-Gemini-Key': geminiKey,
-          },
-        }
-      );
+        body: JSON.stringify({
+          provider,
+          apiKey,
+        }),
+      });
 
-      alert('✅ ทดสอบสำเร็จ!\n\n' + response.data.response);
-    } catch (err: any) {
-      alert('❌ ทดสอบล้มเหลว: ' + (err.response?.data?.message || err.message));
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(data.message || 'ทดสอบการเชื่อมต่อสำเร็จ!');
+      } else {
+        toast.error(data.message || 'ทดสอบการเชื่อมต่อล้มเหลว');
+      }
+    } catch (error: any) {
+      console.error('Error testing API key:', error);
+      toast.error('เกิดข้อผิดพลาดในการทดสอบ');
     } finally {
-      setLoading(false);
+      setTesting(null);
     }
   };
 
@@ -125,21 +127,6 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      {/* Alert Messages */}
-      {saved && (
-        <div className="mb-6 rounded-xl border-2 border-green-200 bg-green-50 p-4 flex items-center gap-3">
-          <Sparkles className="text-green-600" size={24} />
-          <div className="text-green-800 font-semibold">บันทึกการตั้งค่าสำเร็จ!</div>
-        </div>
-      )}
-
-      {error && (
-        <div className="mb-6 rounded-xl border-2 border-red-200 bg-red-50 p-4 flex items-center gap-3">
-          <AlertCircle className="text-red-600" size={24} />
-          <div className="text-red-800">{error}</div>
-        </div>
-      )}
-
       {/* Info Box */}
       <div className="mb-6 rounded-xl border-2 border-blue-200 bg-blue-50 p-6">
         <div className="flex items-start gap-4">
@@ -149,8 +136,7 @@ export default function SettingsPage() {
           <div>
             <h3 className="text-lg font-bold text-blue-900">เกี่ยวกับ API Keys</h3>
             <p className="mt-2 text-sm text-blue-800">
-              API Keys จะถูกเก็บไว้ในเครื่องของคุณ (localStorage) และจะถูกส่งไปยัง server
-              เมื่อเรียกใช้ AI เท่านั้น
+              API Keys จะถูกเก็บไว้ในไฟล์ .env ของ server และจะถูกใช้งานเมื่อเรียกใช้ AI
             </p>
             <div className="mt-3 space-y-2 text-sm text-blue-800">
               <div>
@@ -180,8 +166,18 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Warning if no keys set */}
+      {!hasOpenai && !hasGemini && (
+        <div className="mb-6 rounded-xl border-2 border-yellow-200 bg-yellow-50 p-4 flex items-center gap-3">
+          <AlertCircle className="text-yellow-600" size={24} />
+          <div className="text-yellow-800">
+            <strong>คำเตือน:</strong> ยังไม่มี API keys ถูกตั้งค่า AI features จะไม่สามารถใช้งานได้
+          </div>
+        </div>
+      )}
+
       {/* OpenAI Settings */}
-      <div className="mb-6 rounded-xl bg-white p-6 shadow-sm">
+      <div className="mb-6 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
         <div className="mb-4 flex items-center gap-3">
           <div className="rounded-lg bg-green-100 p-3">
             <Sparkles className="text-green-600" size={24} />
@@ -190,6 +186,13 @@ export default function SettingsPage() {
             <h2 className="text-xl font-bold text-gray-800">OpenAI (ChatGPT)</h2>
             <p className="text-sm text-gray-600">GPT-4 และ GPT-3.5 Turbo</p>
           </div>
+          {hasOpenai && (
+            <div className="ml-auto">
+              <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                ✓ ตั้งค่าแล้ว
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -198,26 +201,32 @@ export default function SettingsPage() {
               API Key
             </label>
             <input
-              type="password"
+              type="text"
               value={openaiKey}
               onChange={(e) => setOpenaiKey(e.target.value)}
               placeholder="sk-..."
               className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
             />
+            {openaiKey.includes('...') && (
+              <p className="mt-1 text-xs text-gray-500">
+                💡 API key ถูก mask เพื่อความปลอดภัย ใส่ key ใหม่เพื่ออัปเดต
+              </p>
+            )}
           </div>
 
           <button
-            onClick={handleTestOpenAI}
-            disabled={loading || !openaiKey}
-            className="rounded-lg bg-green-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-green-600 disabled:bg-gray-300"
+            onClick={() => handleTest('openai')}
+            disabled={loading || testing !== null || !openaiKey || openaiKey.includes('...')}
+            className="flex items-center gap-2 rounded-lg bg-green-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            ทดสอบการเชื่อมต่อ
+            <TestTube size={18} />
+            {testing === 'openai' ? 'กำลังทดสอบ...' : 'ทดสอบการเชื่อมต่อ'}
           </button>
         </div>
       </div>
 
       {/* Gemini Settings */}
-      <div className="mb-6 rounded-xl bg-white p-6 shadow-sm">
+      <div className="mb-6 rounded-xl bg-white p-6 shadow-sm border border-gray-100">
         <div className="mb-4 flex items-center gap-3">
           <div className="rounded-lg bg-purple-100 p-3">
             <Sparkles className="text-purple-600" size={24} />
@@ -226,6 +235,13 @@ export default function SettingsPage() {
             <h2 className="text-xl font-bold text-gray-800">Google Gemini</h2>
             <p className="text-sm text-gray-600">Gemini Pro</p>
           </div>
+          {hasGemini && (
+            <div className="ml-auto">
+              <span className="rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700">
+                ✓ ตั้งค่าแล้ว
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -234,20 +250,26 @@ export default function SettingsPage() {
               API Key
             </label>
             <input
-              type="password"
+              type="text"
               value={geminiKey}
               onChange={(e) => setGeminiKey(e.target.value)}
               placeholder="AI..."
               className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
             />
+            {geminiKey.includes('...') && (
+              <p className="mt-1 text-xs text-gray-500">
+                💡 API key ถูก mask เพื่อความปลอดภัย ใส่ key ใหม่เพื่อออัปเดต
+              </p>
+            )}
           </div>
 
           <button
-            onClick={handleTestGemini}
-            disabled={loading || !geminiKey}
-            className="rounded-lg bg-purple-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-purple-600 disabled:bg-gray-300"
+            onClick={() => handleTest('gemini')}
+            disabled={loading || testing !== null || !geminiKey || geminiKey.includes('...')}
+            className="flex items-center gap-2 rounded-lg bg-purple-500 px-6 py-2 text-sm font-semibold text-white transition hover:bg-purple-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
           >
-            ทดสอบการเชื่อมต่อ
+            <TestTube size={18} />
+            {testing === 'gemini' ? 'กำลังทดสอบ...' : 'ทดสอบการเชื่อมต่อ'}
           </button>
         </div>
       </div>
@@ -256,8 +278,8 @@ export default function SettingsPage() {
       <div className="flex justify-end">
         <button
           onClick={handleSave}
-          disabled={loading}
-          className="flex items-center gap-2 rounded-lg bg-sakura-500 px-8 py-3 font-semibold text-white transition hover:bg-sakura-600 disabled:bg-gray-400"
+          disabled={loading || testing !== null}
+          className="flex items-center gap-2 rounded-lg bg-sakura-500 px-8 py-3 font-semibold text-white transition hover:bg-sakura-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           <Save size={20} />
           {loading ? 'กำลังบันทึก...' : 'บันทึกการตั้งค่า'}
