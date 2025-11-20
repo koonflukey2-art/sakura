@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, ArrowUp } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, ArrowUp, Sparkles, Loader2, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { toast } from 'sonner';
 import {
   LineChart,
   Line,
@@ -56,6 +57,9 @@ export default function AnalyticsPage() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('month');
+  const [aiAnalyzing, setAiAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string>('');
+  const [showAiModal, setShowAiModal] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -72,6 +76,67 @@ export default function AnalyticsPage() {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleAIAnalysis = async () => {
+    if (!analytics) return;
+
+    // Check for API keys in localStorage
+    const openaiKey = localStorage.getItem('openai_api_key');
+    const geminiKey = localStorage.getItem('gemini_api_key');
+
+    if (!openaiKey && !geminiKey) {
+      toast.error('กรุณาตั้งค่า API Keys ที่หน้า Settings ก่อนใช้งาน AI');
+      return;
+    }
+
+    setAiAnalyzing(true);
+    setShowAiModal(true);
+
+    try {
+      const headers: any = {};
+      const provider = geminiKey ? 'gemini' : 'gpt';
+
+      // Add API key to headers
+      if (provider === 'gpt' && openaiKey) {
+        headers['x-openai-key'] = openaiKey;
+      } else if (provider === 'gemini' && geminiKey) {
+        headers['x-gemini-key'] = geminiKey;
+      }
+
+      const response = await api.post(
+        '/ai/execute',
+        {
+          provider,
+          page: 'analytics',
+          action: 'explain_profit_trend',
+          payload: {
+            period,
+            revenue: analytics.revenue,
+            orders: analytics.orders,
+            customers: analytics.customers,
+            campaigns: analytics.campaigns,
+            stock: analytics.stock,
+          },
+          customPrompt: `วิเคราะห์ข้อมูลธุรกิจของฉันในช่วง ${period === 'day' ? 'วันนี้' : period === 'week' ? 'สัปดาห์นี้' : period === 'month' ? 'เดือนนี้' : 'ปีนี้'} และให้คำแนะนำที่เป็นประโยชน์ในการปรับปรุงธุรกิจ โดยเฉพาะ:
+1. วิเคราะห์สถานะกำไร/ขาดทุน และสาเหตุ
+2. แนะนำวิธีเพิ่มรายได้หรือลดต้นทุน
+3. ประเมิน ROI ของแคมเปญโฆษณา
+4. แนะนำกลยุทธ์สำหรับลูกค้าใหม่และลูกค้าเก่า
+5. ข้อเสนอแนะอื่นๆ ที่เป็นประโยชน์`,
+        },
+        { headers }
+      );
+
+      setAiAnalysis(response.data.response);
+      toast.success('AI วิเคราะห์เสร็จแล้ว!');
+    } catch (error: any) {
+      console.error('Error analyzing with AI:', error);
+      toast.error(error.response?.data?.message || 'เกิดข้อผิดพลาดในการวิเคราะห์');
+      setShowAiModal(false);
+    } finally {
+      setAiAnalyzing(false);
     }
   };
 
@@ -93,20 +158,39 @@ export default function AnalyticsPage() {
           <h1 className="text-3xl font-bold text-gray-800">วิเคราะห์ธุรกิจ</h1>
           <p className="mt-2 text-gray-600">ภาพรวมผลกำไรและประสิทธิภาพ</p>
         </div>
-        <div className="flex gap-2">
-          {['day', 'week', 'month', 'year'].map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`rounded-lg px-4 py-2 font-semibold transition ${
-                period === p
-                  ? 'bg-sakura-500 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              {p === 'day' ? 'วันนี้' : p === 'week' ? 'สัปดาห์นี้' : p === 'month' ? 'เดือนนี้' : 'ปีนี้'}
-            </button>
-          ))}
+        <div className="flex gap-3">
+          <div className="flex gap-2">
+            {['day', 'week', 'month', 'year'].map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`rounded-lg px-4 py-2 font-semibold transition ${
+                  period === p
+                    ? 'bg-sakura-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {p === 'day' ? 'วันนี้' : p === 'week' ? 'สัปดาห์นี้' : p === 'month' ? 'เดือนนี้' : 'ปีนี้'}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleAIAnalysis}
+            disabled={aiAnalyzing}
+            className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-2 font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {aiAnalyzing ? (
+              <>
+                <Loader2 className="animate-spin" size={20} />
+                กำลังวิเคราะห์...
+              </>
+            ) : (
+              <>
+                <Sparkles size={20} />
+                ให้ AI วิเคราะห์
+              </>
+            )}
+          </button>
         </div>
       </div>
 
@@ -447,6 +531,61 @@ export default function AnalyticsPage() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {/* AI Analysis Modal */}
+      {showAiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white">
+              <div className="flex items-center gap-3">
+                <Sparkles size={24} />
+                <h2 className="text-2xl font-bold">การวิเคราะห์จาก AI</h2>
+              </div>
+              <button
+                onClick={() => setShowAiModal(false)}
+                className="rounded-lg p-2 transition hover:bg-white/20"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="overflow-y-auto p-6" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+              {aiAnalyzing ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="mb-4 animate-spin text-purple-600" size={48} />
+                  <p className="text-lg text-gray-600">AI กำลังวิเคราะห์ข้อมูลของคุณ...</p>
+                  <p className="mt-2 text-sm text-gray-500">อาจใช้เวลาสักครู่</p>
+                </div>
+              ) : (
+                <div className="prose prose-slate max-w-none">
+                  <div className="whitespace-pre-wrap text-gray-800">{aiAnalysis}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            {!aiAnalyzing && (
+              <div className="flex justify-end gap-3 border-t bg-gray-50 p-4">
+                <button
+                  onClick={() => setShowAiModal(false)}
+                  className="rounded-lg bg-gray-200 px-6 py-2 font-semibold text-gray-800 transition hover:bg-gray-300"
+                >
+                  ปิด
+                </button>
+                <button
+                  onClick={handleAIAnalysis}
+                  className="flex items-center gap-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-2 font-semibold text-white transition hover:scale-105"
+                >
+                  <Sparkles size={18} />
+                  วิเคราะห์อีกครั้ง
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

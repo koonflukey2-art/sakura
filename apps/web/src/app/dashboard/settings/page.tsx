@@ -34,10 +34,25 @@ export default function SettingsPage() {
       }
 
       const data = await response.json();
-      setOpenaiKey(data.openai || '');
-      setGeminiKey(data.gemini || '');
+
+      // Don't display masked keys in input fields
+      // If key is masked (contains '...'), clear the input field
+      setOpenaiKey('');
+      setGeminiKey('');
       setHasOpenai(data.hasOpenai);
       setHasGemini(data.hasGemini);
+
+      // Try to load from localStorage if available
+      const storedOpenaiKey = localStorage.getItem('openai_api_key');
+      const storedGeminiKey = localStorage.getItem('gemini_api_key');
+
+      // Only use stored keys if they're not empty or masked
+      if (storedOpenaiKey && !storedOpenaiKey.includes('...')) {
+        setOpenaiKey(storedOpenaiKey);
+      }
+      if (storedGeminiKey && !storedGeminiKey.includes('...')) {
+        setGeminiKey(storedGeminiKey);
+      }
     } catch (error: any) {
       console.error('Error fetching API keys:', error);
       toast.error('ไม่สามารถโหลด API keys ได้');
@@ -48,6 +63,10 @@ export default function SettingsPage() {
     setLoading(true);
 
     try {
+      // Prepare keys to save
+      const openaiKeyToSave = openaiKey && !openaiKey.includes('...') ? openaiKey : undefined;
+      const geminiKeyToSave = geminiKey && !geminiKey.includes('...') ? geminiKey : undefined;
+
       const response = await fetch('http://localhost:3001/api/settings/api-keys', {
         method: 'POST',
         headers: {
@@ -55,8 +74,8 @@ export default function SettingsPage() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          openaiKey: openaiKey && !openaiKey.includes('...') ? openaiKey : undefined,
-          geminiKey: geminiKey && !geminiKey.includes('...') ? geminiKey : undefined,
+          openaiKey: openaiKeyToSave,
+          geminiKey: geminiKeyToSave,
         }),
       });
 
@@ -66,9 +85,18 @@ export default function SettingsPage() {
       }
 
       const data = await response.json();
-      toast.success(data.message || 'บันทึก API Keys สำเร็จ!');
 
-      // Reload the keys to show masked versions
+      // Save to localStorage for frontend usage
+      if (openaiKeyToSave) {
+        localStorage.setItem('openai_api_key', openaiKeyToSave);
+      }
+      if (geminiKeyToSave) {
+        localStorage.setItem('gemini_api_key', geminiKeyToSave);
+      }
+
+      toast.success('บันทึก API Keys สำเร็จ! สามารถใช้งาน AI ได้ทันที');
+
+      // Reload the keys to update status
       await fetchApiKeys();
     } catch (error: any) {
       console.error('Error saving API keys:', error);
@@ -204,12 +232,16 @@ export default function SettingsPage() {
               type="text"
               value={openaiKey}
               onChange={(e) => setOpenaiKey(e.target.value)}
-              placeholder="sk-..."
+              placeholder={
+                hasOpenai
+                  ? '✓ API Key ตั้งค่าแล้ว - กรอกใหม่เพื่ออัพเดท'
+                  : 'sk-proj-...'
+              }
               className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
             />
-            {openaiKey.includes('...') && (
-              <p className="mt-1 text-xs text-gray-500">
-                💡 API key ถูก mask เพื่อความปลอดภัย ใส่ key ใหม่เพื่ออัปเดต
+            {hasOpenai && !openaiKey && (
+              <p className="mt-1 text-xs text-green-600">
+                ✓ API key ถูกตั้งค่าแล้ว กรอกใหม่เพื่ออัปเดท
               </p>
             )}
           </div>
@@ -253,12 +285,16 @@ export default function SettingsPage() {
               type="text"
               value={geminiKey}
               onChange={(e) => setGeminiKey(e.target.value)}
-              placeholder="AI..."
+              placeholder={
+                hasGemini
+                  ? '✓ API Key ตั้งค่าแล้ว - กรอกใหม่เพื่ออัพเดท'
+                  : 'AIza...'
+              }
               className="w-full rounded-lg border border-gray-300 px-4 py-3 font-mono text-sm focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
             />
-            {geminiKey.includes('...') && (
-              <p className="mt-1 text-xs text-gray-500">
-                💡 API key ถูก mask เพื่อความปลอดภัย ใส่ key ใหม่เพื่อออัปเดต
+            {hasGemini && !geminiKey && (
+              <p className="mt-1 text-xs text-green-600">
+                ✓ API key ถูกตั้งค่าแล้ว กรอกใหม่เพื่ออัปเดท
               </p>
             )}
           </div>

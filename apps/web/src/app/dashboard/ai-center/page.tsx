@@ -156,15 +156,13 @@ export default function AICenterPage() {
         return;
       }
 
-      const headers: any = {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
-      };
+      const headers: any = {};
 
-      // Add API key to request header
+      // Add API key to request header (lowercase as expected by backend)
       if (provider === 'gpt' && openaiKey) {
-        headers['X-OpenAI-Key'] = openaiKey;
+        headers['x-openai-key'] = openaiKey;
       } else if (provider === 'gemini' && geminiKey) {
-        headers['X-Gemini-Key'] = geminiKey;
+        headers['x-gemini-key'] = geminiKey;
       }
 
       const response = await api.post(
