@@ -9,9 +9,13 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-// Initialize AI clients
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null;
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;
+// Initialize AI clients from environment (fallback)
+const defaultOpenAI = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null;
+const defaultGenAI = process.env.GEMINI_API_KEY
+  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
+  : null;
 
 // Validation schema
 const aiExecuteSchema = z.object({
@@ -43,15 +47,22 @@ const canUseAI = (role: UserRole, page: string): boolean => {
 async function executeAI(
   provider: 'gpt' | 'gemini',
   systemPrompt: string,
-  userPrompt: string
+  userPrompt: string,
+  customApiKey?: string
 ): Promise<string> {
   try {
     if (provider === 'gpt') {
-      if (!openai) {
+      // Use custom API key from request, or fall back to default
+      const apiKey = customApiKey || process.env.OPENAI_API_KEY;
+
+      if (!apiKey) {
         throw new AppError(500, 'OpenAI API key not configured');
       }
 
-      const completion = await openai.chat.completions.create({
+      // Create client with custom API key if provided
+      const client = customApiKey ? new OpenAI({ apiKey: customApiKey }) : defaultOpenAI!;
+
+      const completion = await client.chat.completions.create({
         model: 'gpt-4-turbo-preview',
         messages: [
           { role: 'system', content: systemPrompt },
@@ -63,11 +74,19 @@ async function executeAI(
 
       return completion.choices[0]?.message?.content || 'No response';
     } else {
-      if (!genAI) {
+      // Use custom API key from request, or fall back to default
+      const apiKey = customApiKey || process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
         throw new AppError(500, 'Gemini API key not configured');
       }
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      // Create client with custom API key if provided
+      const client = customApiKey
+        ? new GoogleGenerativeAI(customApiKey)
+        : defaultGenAI!;
+
+      const model = client.getGenerativeModel({ model: 'gemini-pro' });
       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
@@ -141,8 +160,13 @@ router.post('/execute', authenticate, async (req: AuthRequest, res, next) => {
       }
     }
 
+    // Get API key from request headers
+    const openaiKey = req.headers['x-openai-key'] as string | undefined;
+    const geminiKey = req.headers['x-gemini-key'] as string | undefined;
+    const customApiKey = provider === 'gpt' ? openaiKey : geminiKey;
+
     // Execute AI
-    const response = await executeAI(provider, systemPrompt, userPrompt);
+    const response = await executeAI(provider, systemPrompt, userPrompt, customApiKey);
 
     // Log AI usage
     await prisma.aiLog.create({

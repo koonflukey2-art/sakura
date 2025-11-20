@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, User, TrendingUp } from 'lucide-react';
+import { Plus, Search, User, TrendingUp, Edit, Trash2, X } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import AIButton from '@/components/AIButton';
 
 interface Customer {
   id: string;
@@ -21,6 +22,15 @@ export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
 
   useEffect(() => {
     fetchCustomers();
@@ -38,6 +48,41 @@ export default function CustomersPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      if (editingCustomer) {
+        // Update
+        await api.put(`/customers/${editingCustomer.id}`, formData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        // Create
+        await api.post('/customers', formData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      setShowModal(false);
+      setEditingCustomer(null);
+      setFormData({ name: '', email: '', phone: '' });
+      fetchCustomers();
+    } catch (error: any) {
+      alert('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleEdit = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setFormData({
+      name: customer.name,
+      email: customer.email || '',
+      phone: customer.phone || '',
+    });
+    setShowModal(true);
   };
 
   if (loading) {
@@ -60,10 +105,26 @@ export default function CustomersPage() {
           <h1 className="text-3xl font-bold text-gray-800">ลูกค้า</h1>
           <p className="mt-2 text-gray-600">จัดการข้อมูลลูกค้าและประวัติการซื้อ</p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-sakura-500 px-6 py-3 font-semibold text-white transition hover:bg-sakura-600">
-          <Plus size={20} />
-          เพิ่มลูกค้าใหม่
-        </button>
+        <div className="flex gap-3">
+          <AIButton
+            page="customers"
+            action="analyze_customers"
+            payload={{ customers }}
+            buttonText="ให้ AI วิเคราะห์"
+            variant="secondary"
+          />
+          <button
+            onClick={() => {
+              setEditingCustomer(null);
+              setFormData({ name: '', email: '', phone: '' });
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 rounded-lg bg-sakura-500 px-6 py-3 font-semibold text-white transition hover:bg-sakura-600"
+          >
+            <Plus size={20} />
+            เพิ่มลูกค้าใหม่
+          </button>
+        </div>
       </div>
 
       {/* Summary */}
@@ -155,12 +216,15 @@ export default function CustomersPage() {
                 <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
                   วันที่สมัคร
                 </th>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-gray-700">
+                  จัดการ
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {customers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     ไม่พบข้อมูลลูกค้า
                   </td>
                 </tr>
@@ -204,6 +268,16 @@ export default function CustomersPage() {
                       <td className="px-6 py-4 text-center text-sm text-gray-600">
                         {new Date(customer.createdAt).toLocaleDateString('th-TH')}
                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleEdit(customer)}
+                            className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit size={18} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -212,6 +286,83 @@ export default function CustomersPage() {
           </table>
         </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {editingCustomer ? 'แก้ไขข้อมูลลูกค้า' : 'เพิ่มลูกค้าใหม่'}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  ชื่อลูกค้า *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                  placeholder="เช่น นายสมชาย ใจดี"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">อีเมล</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                  placeholder="customer@example.com"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  เบอร์โทรศัพท์
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                  placeholder="0812345678"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-lg px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-sakura-500 px-8 py-3 font-semibold text-white transition hover:bg-sakura-600"
+                >
+                  {editingCustomer ? 'บันทึกการแก้ไข' : 'เพิ่มลูกค้า'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

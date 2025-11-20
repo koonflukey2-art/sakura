@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, AlertTriangle, X, Package } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import AIButton from '@/components/AIButton';
 
 interface StockItem {
   id: string;
@@ -25,6 +26,19 @@ export default function StockPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<StockItem | null>(null);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    description: '',
+    location: '',
+    priceCost: '',
+    priceSell: '',
+    quantity: '',
+    minThreshold: '10',
+  });
 
   useEffect(() => {
     fetchStock();
@@ -44,6 +58,79 @@ export default function StockPage() {
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        description: formData.description || undefined,
+        location: formData.location || undefined,
+        priceCost: parseFloat(formData.priceCost),
+        priceSell: parseFloat(formData.priceSell),
+        quantity: parseInt(formData.quantity),
+        minThreshold: parseInt(formData.minThreshold),
+      };
+
+      if (editingItem) {
+        // Update
+        await api.put(`/stock/items/${editingItem.id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } else {
+        // Create
+        await api.post('/stock/items', payload, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      setShowModal(false);
+      setEditingItem(null);
+      setFormData({
+        name: '',
+        code: '',
+        description: '',
+        location: '',
+        priceCost: '',
+        priceSell: '',
+        quantity: '',
+        minThreshold: '10',
+      });
+      fetchStock();
+    } catch (error: any) {
+      alert('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
+  const handleEdit = (item: StockItem) => {
+    setEditingItem(item);
+    setFormData({
+      name: item.name,
+      code: item.code,
+      description: item.description || '',
+      location: item.location || '',
+      priceCost: item.priceCost.toString(),
+      priceSell: item.priceSell.toString(),
+      quantity: item.quantity.toString(),
+      minThreshold: item.minThreshold.toString(),
+    });
+    setShowModal(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('คุณแน่ใจหรือไม่ว่าต้องการลบสินค้านี้?')) return;
+
+    try {
+      await api.delete(`/stock/items/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      fetchStock();
+    } catch (error: any) {
+      alert('เกิดข้อผิดพลาด: ' + (error.response?.data?.message || error.message));
+    }
+  };
+
   const getLowStockItems = () => {
     return items.filter((item) => item.quantity <= item.minThreshold);
   };
@@ -57,6 +144,9 @@ export default function StockPage() {
   }
 
   const lowStockItems = getLowStockItems();
+  const totalValue = items.reduce((sum, item) => sum + Number(item.priceCost) * item.quantity, 0);
+  const totalItems = items.length;
+  const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div>
@@ -66,13 +156,90 @@ export default function StockPage() {
           <h1 className="text-3xl font-bold text-gray-800">จัดการสต๊อกสินค้า</h1>
           <p className="mt-2 text-gray-600">ดูแลและจัดการสินค้าคงคลังของคุณ</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 rounded-lg bg-sakura-500 px-6 py-3 font-semibold text-white transition hover:bg-sakura-600"
-        >
-          <Plus size={20} />
-          เพิ่มสินค้าใหม่
-        </button>
+        <div className="flex gap-3">
+          <AIButton
+            page="stock"
+            action="analyze_stock"
+            payload={{ items }}
+            buttonText="ให้ AI วิเคราะห์"
+            variant="success"
+          />
+          <button
+            onClick={() => {
+              setEditingItem(null);
+              setFormData({
+                name: '',
+                code: '',
+                description: '',
+                location: '',
+                priceCost: '',
+                priceSell: '',
+                quantity: '',
+                minThreshold: '10',
+              });
+              setShowModal(true);
+            }}
+            className="flex items-center gap-2 rounded-lg bg-sakura-500 px-6 py-3 font-semibold text-white transition hover:bg-sakura-600"
+          >
+            <Plus size={20} />
+            เพิ่มสินค้าใหม่
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Cards */}
+      <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">จำนวนสินค้า</p>
+              <p className="mt-2 text-3xl font-bold text-gray-800">{totalItems}</p>
+            </div>
+            <div className="rounded-full bg-blue-100 p-3">
+              <Package className="text-blue-600" size={24} />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">จำนวนชิ้นทั้งหมด</p>
+              <p className="mt-2 text-3xl font-bold text-purple-600">
+                {totalQuantity.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-full bg-purple-100 p-3">
+              <Package className="text-purple-600" size={24} />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">มูลค่ารวม</p>
+              <p className="mt-2 text-2xl font-bold text-green-600">
+                ฿{totalValue.toLocaleString()}
+              </p>
+            </div>
+            <div className="rounded-full bg-green-100 p-3">
+              <Package className="text-green-600" size={24} />
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">สินค้าใกล้หมด</p>
+              <p className="mt-2 text-3xl font-bold text-orange-600">{lowStockItems.length}</p>
+            </div>
+            <div className="rounded-full bg-orange-100 p-3">
+              <AlertTriangle className="text-orange-600" size={24} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Low Stock Alert */}
@@ -200,10 +367,16 @@ export default function StockPage() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
-                          <button className="rounded-lg p-2 text-blue-600 hover:bg-blue-50">
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="rounded-lg p-2 text-blue-600 hover:bg-blue-50"
+                          >
                             <Edit size={18} />
                           </button>
-                          <button className="rounded-lg p-2 text-red-600 hover:bg-red-50">
+                          <button
+                            onClick={() => handleDelete(item.id)}
+                            className="rounded-lg p-2 text-red-600 hover:bg-red-50"
+                          >
                             <Trash2 size={18} />
                           </button>
                         </div>
@@ -216,6 +389,174 @@ export default function StockPage() {
           </table>
         </div>
       </div>
+
+      {/* Create/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-3xl rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 sticky top-0 bg-white">
+              <h2 className="text-2xl font-bold text-gray-800">
+                {editingItem ? 'แก้ไขสินค้า' : 'เพิ่มสินค้าใหม่'}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+              >
+                <X size={24} />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    ชื่อสินค้า *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                    placeholder="เช่น สินค้า A"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    รหัสสินค้า *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    disabled={!!editingItem}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200 disabled:bg-gray-100"
+                    placeholder="เช่น PROD001"
+                  />
+                  {editingItem && (
+                    <p className="mt-1 text-xs text-gray-500">รหัสสินค้าไม่สามารถแก้ไขได้</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  คำอธิบาย
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                  placeholder="รายละเอียดเพิ่มเติม..."
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">
+                  ที่เก็บ / คลัง
+                </label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                  placeholder="เช่น คลัง A, ชั้น 2"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    ราคาต้นทุน (฿) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.priceCost}
+                    onChange={(e) => setFormData({ ...formData, priceCost: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                    placeholder="100"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    ราคาขาย (฿) *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    step="0.01"
+                    value={formData.priceSell}
+                    onChange={(e) => setFormData({ ...formData, priceSell: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                    placeholder="150"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    จำนวนคงเหลือ *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.quantity}
+                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                    placeholder="100"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-gray-700">
+                    จำนวนขั้นต่ำ *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.minThreshold}
+                    onChange={(e) => setFormData({ ...formData, minThreshold: e.target.value })}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
+                    placeholder="10"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">
+                    แจ้งเตือนเมื่อสินค้าเหลือน้อยกว่าจำนวนนี้
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="rounded-lg px-6 py-3 font-semibold text-gray-700 transition hover:bg-gray-100"
+                >
+                  ยกเลิก
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-sakura-500 px-8 py-3 font-semibold text-white transition hover:bg-sakura-600"
+                >
+                  {editingItem ? 'บันทึกการแก้ไข' : 'เพิ่มสินค้า'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
