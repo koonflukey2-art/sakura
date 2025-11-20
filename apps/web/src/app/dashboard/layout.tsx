@@ -18,10 +18,12 @@ import {
   LogOut,
   Settings,
   X,
+  Sparkles,
 } from 'lucide-react';
 
 const menuItems = [
   { icon: LayoutDashboard, label: 'แดชบอร์ด', href: '/dashboard', roles: ['ADMIN', 'STAFF_STOCK', 'STAFF_MARKETING', 'VIEWER'] },
+  { icon: Sparkles, label: 'AI Center', href: '/dashboard/ai-center', roles: ['ADMIN', 'STAFF_STOCK', 'STAFF_MARKETING'], highlight: true },
   { icon: Users, label: 'จัดการผู้ใช้', href: '/dashboard/users', roles: ['ADMIN'] },
   { icon: Package, label: 'สต๊อกสินค้า', href: '/dashboard/stock', roles: ['ADMIN', 'STAFF_STOCK'] },
   { icon: Wallet, label: 'งบประมาณ', href: '/dashboard/budget', roles: ['ADMIN', 'STAFF_STOCK', 'STAFF_MARKETING'] },

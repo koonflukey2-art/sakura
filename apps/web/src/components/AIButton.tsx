@@ -106,13 +106,23 @@ export default function AIButton({
 
   return (
     <>
-      {/* AI Button */}
+      {/* AI Button with Enhanced Animations */}
       <button
         onClick={() => setShowModal(true)}
-        className={`flex items-center gap-2 rounded-lg font-semibold transition ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
+        className={`group relative flex items-center gap-2 overflow-hidden rounded-lg font-semibold transition-all duration-300 hover:scale-105 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`}
       >
-        <Sparkles size={size === 'sm' ? 16 : size === 'lg' ? 24 : 20} />
-        {buttonText}
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+
+        {/* Button Content */}
+        <Sparkles
+          size={size === 'sm' ? 16 : size === 'lg' ? 24 : 20}
+          className="relative z-10 transition-transform duration-300 group-hover:rotate-12 group-hover:scale-110"
+        />
+        <span className="relative z-10">{buttonText}</span>
+
+        {/* Pulse Effect */}
+        <div className="absolute inset-0 rounded-lg bg-white opacity-0 group-hover:animate-ping"></div>
       </button>
 
       {/* Modal */}

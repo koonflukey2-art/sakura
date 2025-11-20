@@ -31,11 +31,22 @@ const canUseAI = (role: UserRole, page: string): boolean => {
   // ADMIN can use AI everywhere
   if (role === UserRole.ADMIN) return true;
 
-  // STAFF_STOCK can use AI on stock pages
-  if (role === UserRole.STAFF_STOCK && page === 'stock') return true;
+  // STAFF_STOCK can use AI on stock, dashboard, ai-center, and orders pages
+  if (
+    role === UserRole.STAFF_STOCK &&
+    (page === 'stock' || page === 'dashboard' || page === 'ai-center' || page === 'orders')
+  )
+    return true;
 
-  // STAFF_MARKETING can use AI on campaigns/analytics pages
-  if (role === UserRole.STAFF_MARKETING && (page === 'campaigns' || page === 'analytics')) {
+  // STAFF_MARKETING can use AI on campaigns/analytics/dashboard/ai-center/customers pages
+  if (
+    role === UserRole.STAFF_MARKETING &&
+    (page === 'campaigns' ||
+      page === 'analytics' ||
+      page === 'dashboard' ||
+      page === 'ai-center' ||
+      page === 'customers')
+  ) {
     return true;
   }
 
@@ -158,6 +169,68 @@ router.post('/execute', authenticate, async (req: AuthRequest, res, next) => {
           userPrompt ||
           `วิเคราะห์และแนะนำวิธีจัดสรรงบโฆษณาให้มีประสิทธิภาพ:\n\n${JSON.stringify(payload, null, 2)}`;
       }
+    } else if (page === 'dashboard') {
+      systemPrompt = `คุณเป็น AI ผู้ช่วยวิเคราะห์ภาพรวมธุรกิจ ให้คำแนะนำที่เป็นประโยชน์และชัดเจนเป็นภาษาไทย โดยพิจารณาทุกด้านของธุรกิจ`;
+
+      if (action === 'get_suggestions') {
+        userPrompt =
+          userPrompt ||
+          `วิเคราะห์ข้อมูลภาพรวมธุรกิจและให้คำแนะนำที่เป็นประโยชน์:\n\n${JSON.stringify(payload, null, 2)}`;
+      } else if (action === 'analyze_overview') {
+        userPrompt =
+          userPrompt ||
+          `วิเคราะห์สถานะปัจจุบันของธุรกิจและให้คำแนะนำเชิงลึกว่าควรปรับปรุงในด้านใด:\n\n${JSON.stringify(payload, null, 2)}`;
+      }
+    } else if (page === 'ai-center') {
+      systemPrompt = `คุณเป็น AI ผู้ช่วยอัจฉริยะที่เชี่ยวชาญในการวิเคราะห์ธุรกิจทุกด้าน รวมถึง:
+- การจัดการสต๊อกสินค้า
+- การวิเคราะห์ยอดขายและกำไร
+- การจัดการงบประมาณ
+- การตลาดและแคมเปญโฆษณา
+- พฤติกรรมลูกค้า
+- กลยุทธ์ธุรกิจ
+
+ให้คำตอบที่เป็นประโยชน์ ชัดเจน และสามารถนำไปใช้ได้จริง เป็นภาษาไทย`;
+
+      if (action === 'general_query') {
+        const context = payload?.context || 'all';
+        const contextInfo =
+          context === 'all'
+            ? 'ทั้งหมด'
+            : context === 'stock'
+              ? 'สต๊อกสินค้า'
+              : context === 'sales'
+                ? 'ยอดขาย'
+                : context === 'budget'
+                  ? 'งบประมาณ'
+                  : context === 'campaigns'
+                    ? 'แคมเปญโฆษณา'
+                    : 'การวิเคราะห์';
+
+        const previousMessages = payload?.previousMessages || [];
+        const conversationContext =
+          previousMessages.length > 0
+            ? `\n\nบทสนทนาก่อนหน้า:\n${previousMessages
+                .map(
+                  (msg: any) => `${msg.role === 'user' ? 'ผู้ใช้' : 'AI'}: ${msg.content}`
+                )
+                .join('\n')}`
+            : '';
+
+        userPrompt =
+          userPrompt ||
+          `บริบท: ${contextInfo}\n\nคำถาม: ${customPrompt}${conversationContext}`;
+      }
+    } else if (page === 'orders') {
+      systemPrompt = `คุณเป็น AI ผู้ช่วยวิเคราะห์การขายและคำสั่งซื้อ ให้คำแนะนำที่เป็นประโยชน์เป็นภาษาไทย`;
+      userPrompt =
+        userPrompt ||
+        `วิเคราะห์ข้อมูลคำสั่งซื้อและให้คำแนะนำ:\n\n${JSON.stringify(payload, null, 2)}`;
+    } else if (page === 'customers') {
+      systemPrompt = `คุณเป็น AI ผู้ช่วยวิเคราะห์พฤติกรรมลูกค้า ให้คำแนะนำที่เป็นประโยชน์เป็นภาษาไทย`;
+      userPrompt =
+        userPrompt ||
+        `วิเคราะห์ข้อมูลลูกค้าและให้คำแนะนำกลยุทธ์:\n\n${JSON.stringify(payload, null, 2)}`;
     }
 
     // Get API key from request headers
