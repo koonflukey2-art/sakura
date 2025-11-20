@@ -8,6 +8,7 @@ import { z } from 'zod';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import { toast } from 'sonner';
 
 const loginSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
@@ -39,9 +40,12 @@ export default function LoginPage() {
       const { token, user } = response.data;
 
       setAuth(user, token);
+      toast.success(`ยินดีต้อนรับ ${user.name}! 🎉`);
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ');
+      const errorMessage = err.response?.data?.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

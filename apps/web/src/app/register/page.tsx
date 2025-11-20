@@ -7,6 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { api } from '@/lib/api';
+import { toast } from 'sonner';
 
 const registerSchema = z.object({
   email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
@@ -36,9 +37,12 @@ export default function RegisterPage() {
 
     try {
       await api.post('/auth/register', data);
+      toast.success('สมัครสมาชิกสำเร็จ! กรุณาเข้าสู่ระบบ 🎉');
       router.push('/login?registered=true');
     } catch (err: any) {
-      setError(err.response?.data?.error || 'เกิดข้อผิดพลาดในการสมัครสมาชิก');
+      const errorMessage = err.response?.data?.error || 'เกิดข้อผิดพลาดในการสมัครสมาชิก';
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

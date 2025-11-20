@@ -271,13 +271,84 @@ model Campaign {
   clicks          Int               @default(0)
   conversions     Int               @default(0)
 
+  // Alert Settings
+  minROAS         Decimal?          @map("min_roas") @db.Decimal(5, 2) // ROAS ขั้นต่ำที่ยอมรับได้
+  maxCPA          Decimal?          @map("max_cpa") @db.Decimal(10, 2) // CPA สูงสุดที่ยอมรับได้
+  autoStopOnLowProfit Boolean       @default(false) @map("auto_stop_on_low_profit")
+
   startDate       DateTime?         @map("start_date")
   endDate         DateTime?         @map("end_date")
+
+  // Relations
+  alerts          CampaignAlert[]
+  tests           CampaignTest[]
 
   createdAt       DateTime          @default(now()) @map("created_at")
   updatedAt       DateTime          @updatedAt @map("updated_at")
 
   @@map("campaigns")
+}
+
+// ============================================
+// Campaign Alerts & Tests
+// ============================================
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model CampaignAlert {
+  id              String          @id @default(cuid())
+  campaignId      String          @map("campaign_id")
+
+  severity        AlertSeverity
+  title           String
+  message         String
+  dataJson        Json?           @map("data_json")
+
+  isResolved      Boolean         @default(false) @map("is_resolved")
+  resolvedAt      DateTime?       @map("resolved_at")
+
+  // Relations
+  campaign        Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@map("campaign_alerts")
+}
+
+enum TestStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model CampaignTest {
+  id              String        @id @default(cuid())
+  campaignId      String        @map("campaign_id")
+
+  testName        String        @map("test_name")
+  testBudget      Decimal       @map("test_budget") @db.Decimal(10, 2)
+  spent           Decimal       @default(0) @db.Decimal(10, 2)
+  revenue         Decimal       @default(0) @db.Decimal(10, 2)
+
+  impressions     Int           @default(0)
+  clicks          Int           @default(0)
+  conversions     Int           @default(0)
+
+  status          TestStatus    @default(PENDING)
+  resultJson      Json?         @map("result_json")
+
+  // Relations
+  campaign        Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@map("campaign_tests")
 }
 
 // ============================================
@@ -291,6 +362,9 @@ enum NotificationType {
   STOCK_LOW
   AI_SUGGESTION
   ORDER_NEW
+  CAMPAIGN_ALERT
+  CAMPAIGN_LOW_PERFORMANCE
+  CAMPAIGN_HIGH_COST
   SYSTEM
 }
 

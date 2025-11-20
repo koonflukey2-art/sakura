@@ -89,6 +89,42 @@ router.put(
   }
 );
 
+// GET /api/users/:id - ดึงข้อมูลผู้ใช้รายคน (เฉพาะ ADMIN)
+router.get('/:id', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res, next) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        _count: {
+          select: {
+            budgetRequests: true,
+            approvedBudgets: true,
+            notifications: true,
+            aiLogs: true,
+            createdCampaigns: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new AppError(404, 'User not found');
+    }
+
+    res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // PUT /api/users/:id/status - เปลี่ยนสถานะผู้ใช้ (เฉพาะ ADMIN)
 router.put(
   '/:id/status',
@@ -115,6 +151,29 @@ router.put(
       });
 
       res.json(user);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// DELETE /api/users/:id - ลบผู้ใช้ (เฉพาะ ADMIN)
+router.delete(
+  '/:id',
+  authenticate,
+  authorize(UserRole.ADMIN),
+  async (req: AuthRequest, res, next) => {
+    try {
+      // ไม่ให้ลบตัวเอง
+      if (req.params.id === req.user!.id) {
+        throw new AppError(400, 'Cannot delete your own account');
+      }
+
+      await prisma.user.delete({
+        where: { id: req.params.id },
+      });
+
+      res.json({ message: 'User deleted successfully' });
     } catch (error) {
       next(error);
     }

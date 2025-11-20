@@ -1,6 +1,14 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, CampaignPlatform, CampaignStatus } from '@sakura/database';
+import {
+  prisma,
+  UserRole,
+  CampaignPlatform,
+  CampaignStatus,
+  AlertSeverity,
+  TestStatus,
+  NotificationType,
+} from '@sakura/database';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import { AppError } from '../middleware/errorHandler';
 
@@ -236,5 +244,404 @@ router.get('/stats/performance', authenticate, async (req: AuthRequest, res, nex
     next(error);
   }
 });
+
+// ============================================
+// Campaign Alerts
+// ============================================
+
+const createAlertSchema = z.object({
+  severity: z.nativeEnum(AlertSeverity),
+  title: z.string().min(1),
+  message: z.string().min(1),
+  dataJson: z.record(z.any()).optional(),
+});
+
+// GET /api/campaigns/:id/alerts - ดึง alerts ของแคมเปญ
+router.get('/:id/alerts', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const { resolved } = req.query;
+
+    const where: any = {
+      campaignId: req.params.id,
+    };
+
+    if (resolved !== undefined) {
+      where.isResolved = resolved === 'true';
+    }
+
+    const alerts = await prisma.campaignAlert.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(alerts);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/campaigns/:id/alerts - สร้าง alert (เฉพาะ ADMIN และ STAFF_MARKETING)
+router.post(
+  '/:id/alerts',
+  authenticate,
+  authorize(UserRole.ADMIN, UserRole.STAFF_MARKETING),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const data = createAlertSchema.parse(req.body);
+
+      const campaign = await prisma.campaign.findUnique({
+        where: { id: req.params.id },
+        include: { createdBy: true },
+      });
+
+      if (!campaign) {
+        throw new AppError(404, 'Campaign not found');
+      }
+
+      const alert = await prisma.campaignAlert.create({
+        data: {
+          ...data,
+          campaignId: req.params.id,
+        },
+      });
+
+      // สร้างการแจ้งเตือนให้ผู้สร้างแคมเปญ
+      await prisma.notification.create({
+        data: {
+          userId: campaign.createdById,
+          type: NotificationType.CAMPAIGN_ALERT,
+          title: `แจ้งเตือนแคมเปญ: ${campaign.name}`,
+          message: data.message,
+          dataJson: { campaignId: campaign.id, alertId: alert.id },
+        },
+      });
+
+      // ถ้าเป็น CRITICAL ให้แจ้งเตือน ADMIN ด้วย
+      if (data.severity === AlertSeverity.CRITICAL) {
+        const admins = await prisma.user.findMany({
+          where: { role: UserRole.ADMIN },
+        });
+
+        await Promise.all(
+          admins.map((admin) =>
+            prisma.notification.create({
+              data: {
+                userId: admin.id,
+                type: NotificationType.CAMPAIGN_ALERT,
+                title: `🚨 แจ้งเตือนวิกฤติ: ${campaign.name}`,
+                message: data.message,
+                dataJson: { campaignId: campaign.id, alertId: alert.id },
+              },
+            })
+          )
+        );
+      }
+
+      res.status(201).json(alert);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PUT /api/campaigns/:campaignId/alerts/:alertId/resolve - แก้ไข alert เป็น resolved
+router.put(
+  '/:campaignId/alerts/:alertId/resolve',
+  authenticate,
+  authorize(UserRole.ADMIN, UserRole.STAFF_MARKETING),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const alert = await prisma.campaignAlert.update({
+        where: { id: req.params.alertId },
+        data: {
+          isResolved: true,
+          resolvedAt: new Date(),
+        },
+      });
+
+      res.json(alert);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ============================================
+// Campaign Tests
+// ============================================
+
+const createTestSchema = z.object({
+  testName: z.string().min(1),
+  testBudget: z.number().positive(),
+});
+
+const updateTestMetricsSchema = z.object({
+  spent: z.number().min(0).optional(),
+  revenue: z.number().min(0).optional(),
+  impressions: z.number().int().min(0).optional(),
+  clicks: z.number().int().min(0).optional(),
+  conversions: z.number().int().min(0).optional(),
+  status: z.nativeEnum(TestStatus).optional(),
+  resultJson: z.record(z.any()).optional(),
+});
+
+// GET /api/campaigns/:id/tests - ดึงการทดสอบของแคมเปญ
+router.get('/:id/tests', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const tests = await prisma.campaignTest.findMany({
+      where: {
+        campaignId: req.params.id,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json(tests);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/campaigns/:id/tests - สร้างการทดสอบใหม่ (เฉพาะ ADMIN และ STAFF_MARKETING)
+router.post(
+  '/:id/tests',
+  authenticate,
+  authorize(UserRole.ADMIN, UserRole.STAFF_MARKETING),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const data = createTestSchema.parse(req.body);
+
+      const campaign = await prisma.campaign.findUnique({
+        where: { id: req.params.id },
+      });
+
+      if (!campaign) {
+        throw new AppError(404, 'Campaign not found');
+      }
+
+      const test = await prisma.campaignTest.create({
+        data: {
+          ...data,
+          campaignId: req.params.id,
+          status: TestStatus.PENDING,
+        },
+      });
+
+      res.status(201).json(test);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// PUT /api/campaigns/:campaignId/tests/:testId - อัปเดตการทดสอบ
+router.put(
+  '/:campaignId/tests/:testId',
+  authenticate,
+  authorize(UserRole.ADMIN, UserRole.STAFF_MARKETING),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const data = updateTestMetricsSchema.parse(req.body);
+
+      const test = await prisma.campaignTest.update({
+        where: { id: req.params.testId },
+        data,
+      });
+
+      res.json(test);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// POST /api/campaigns/:campaignId/tests/:testId/run - เริ่มรันการทดสอบ
+router.post(
+  '/:campaignId/tests/:testId/run',
+  authenticate,
+  authorize(UserRole.ADMIN, UserRole.STAFF_MARKETING),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const test = await prisma.campaignTest.findUnique({
+        where: { id: req.params.testId },
+      });
+
+      if (!test) {
+        throw new AppError(404, 'Test not found');
+      }
+
+      if (test.status !== TestStatus.PENDING) {
+        throw new AppError(400, 'Test already started or completed');
+      }
+
+      const updatedTest = await prisma.campaignTest.update({
+        where: { id: req.params.testId },
+        data: {
+          status: TestStatus.RUNNING,
+        },
+      });
+
+      res.json({
+        message: 'Test started successfully',
+        test: updatedTest,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+// ============================================
+// AI Campaign Analysis
+// ============================================
+
+// POST /api/campaigns/:id/ai-analyze - AI วิเคราะห์ว่าควรยิงต่อหรือหยุด
+router.post(
+  '/:id/ai-analyze',
+  authenticate,
+  authorize(UserRole.ADMIN, UserRole.STAFF_MARKETING),
+  async (req: AuthRequest, res, next) => {
+    try {
+      const campaign = await prisma.campaign.findUnique({
+        where: { id: req.params.id },
+        include: {
+          alerts: {
+            where: { isResolved: false },
+          },
+          tests: {
+            where: { status: TestStatus.COMPLETED },
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+        },
+      });
+
+      if (!campaign) {
+        throw new AppError(404, 'Campaign not found');
+      }
+
+      // คำนวณ metrics
+      const spent = Number(campaign.spent);
+      const revenue = Number(campaign.revenue);
+      const roi = spent > 0 ? ((revenue - spent) / spent) * 100 : 0;
+      const roas = spent > 0 ? revenue / spent : 0;
+      const cpa = campaign.conversions > 0 ? spent / campaign.conversions : 0;
+
+      // กฎการตัดสินใจ
+      let shouldContinue = true;
+      let recommendation = '';
+      const warnings: string[] = [];
+
+      // เช็ค ROAS
+      if (campaign.minROAS && roas < Number(campaign.minROAS)) {
+        shouldContinue = false;
+        warnings.push(
+          `ROAS (${roas.toFixed(2)}) ต่ำกว่าที่กำหนด (${campaign.minROAS})`
+        );
+      }
+
+      // เช็ค CPA
+      if (campaign.maxCPA && cpa > Number(campaign.maxCPA)) {
+        shouldContinue = false;
+        warnings.push(
+          `CPA (${cpa.toFixed(2)}) สูงกว่าที่กำหนด (${campaign.maxCPA})`
+        );
+      }
+
+      // เช็คว่าขาดทุนหรือไม่
+      if (roi < 0 && campaign.autoStopOnLowProfit) {
+        shouldContinue = false;
+        warnings.push(`กำลังขาดทุน ROI: ${roi.toFixed(2)}%`);
+      }
+
+      // เช็ค budget
+      if (spent >= Number(campaign.budget)) {
+        shouldContinue = false;
+        warnings.push('งบประมาณถูกใช้หมดแล้ว');
+      }
+
+      // สร้างคำแนะนำ
+      if (shouldContinue) {
+        recommendation = `✅ แคมเปญนี้มีผลลัพธ์ดี ควรดำเนินการต่อ\n\n📊 ผลลัพธ์:\n- ROAS: ${roas.toFixed(
+          2
+        )}\n- ROI: ${roi.toFixed(2)}%\n- CPA: ฿${cpa.toFixed(2)}\n- Conversions: ${
+          campaign.conversions
+        }`;
+      } else {
+        recommendation = `⚠️ แนะนำให้หยุดหรือปรับแคมเปญ\n\n❌ ปัญหาที่พบ:\n${warnings
+          .map((w) => `- ${w}`)
+          .join('\n')}\n\n📊 ผลลัพธ์:\n- ROAS: ${roas.toFixed(
+          2
+        )}\n- ROI: ${roi.toFixed(2)}%\n- CPA: ฿${cpa.toFixed(2)}\n- Spent: ฿${spent.toFixed(
+          2
+        )} / ฿${Number(campaign.budget).toFixed(2)}`;
+      }
+
+      // บันทึก AI Log
+      await prisma.aiLog.create({
+        data: {
+          userId: req.user!.id,
+          page: 'campaigns',
+          action: 'analyze_campaign',
+          requestPrompt: `Analyze campaign: ${campaign.name}`,
+          response: recommendation,
+          provider: 'rule-based', // ในตัวอย่างนี้ใช้ rule-based ก่อน
+        },
+      });
+
+      // ถ้าแนะนำให้หยุดและเปิด autoStop
+      if (!shouldContinue && campaign.autoStopOnLowProfit) {
+        await prisma.campaign.update({
+          where: { id: campaign.id },
+          data: {
+            status: CampaignStatus.PAUSED,
+          },
+        });
+
+        // สร้าง alert
+        await prisma.campaignAlert.create({
+          data: {
+            campaignId: campaign.id,
+            severity: AlertSeverity.CRITICAL,
+            title: 'แคมเปญถูกหยุดอัตโนมัติ',
+            message: `แคมเปญถูกหยุดโดย AI เนื่องจาก: ${warnings.join(', ')}`,
+            dataJson: { roi, roas, cpa },
+          },
+        });
+
+        // แจ้งเตือน
+        await prisma.notification.create({
+          data: {
+            userId: campaign.createdById,
+            type: NotificationType.CAMPAIGN_LOW_PERFORMANCE,
+            title: `🚨 แคมเปญถูกหยุด: ${campaign.name}`,
+            message: recommendation,
+            dataJson: { campaignId: campaign.id },
+          },
+        });
+      }
+
+      res.json({
+        shouldContinue,
+        recommendation,
+        warnings,
+        metrics: {
+          spent,
+          revenue,
+          roi: Number(roi.toFixed(2)),
+          roas: Number(roas.toFixed(2)),
+          cpa: Number(cpa.toFixed(2)),
+          conversions: campaign.conversions,
+          budgetUsedPercent: Number(
+            ((spent / Number(campaign.budget)) * 100).toFixed(2)
+          ),
+        },
+        alerts: campaign.alerts.length,
+        completedTests: campaign.tests.length,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 export default router;
