@@ -14,10 +14,13 @@ import {
   X,
   TrendingUp,
   DollarSign,
+  Settings,
+  TestTube,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
 import AIButton from '@/components/AIButton';
+import { useRouter } from 'next/navigation';
 
 interface Campaign {
   id: string;
@@ -57,6 +60,7 @@ const platformColors: Record<string, string> = {
 
 export default function CampaignsPage() {
   const { token } = useAuthStore();
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -170,6 +174,20 @@ export default function CampaignsPage() {
           <p className="mt-2 text-gray-600">จัดการและติดตามแคมเปญโฆษณา</p>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => router.push('/dashboard/campaigns/settings')}
+            className="flex items-center gap-2 rounded-lg bg-gray-600 px-6 py-3 font-semibold text-white transition hover:bg-gray-700"
+          >
+            <Settings size={20} />
+            ตั้งค่า API
+          </button>
+          <button
+            onClick={() => router.push('/dashboard/campaigns/test')}
+            className="flex items-center gap-2 rounded-lg bg-purple-500 px-6 py-3 font-semibold text-white transition hover:bg-purple-600"
+          >
+            <TestTube size={20} />
+            ทดสอบ
+          </button>
           <AIButton
             page="campaigns"
             action="optimize_ad_budget"

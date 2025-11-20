@@ -4,6 +4,23 @@ import { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, ShoppingBag, Users, ArrowUp } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface Analytics {
   revenue: {
@@ -292,6 +309,198 @@ export default function AnalyticsPage() {
           <p>📈 ค่าเฉลี่ยต่อออเดอร์: ฿{analytics.orders.avgOrderValue.toLocaleString()} - ลองเพิ่ม upselling/cross-selling</p>
         </div>
       </div>
+
+      {/* Charts Section */}
+      <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Revenue Trend Chart */}
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h3 className="mb-6 text-lg font-bold text-gray-800">📊 แนวโน้มรายได้</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <AreaChart
+              data={generateTrendData(period)}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <defs>
+                <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorCost" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#ef4444" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="name" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                }}
+              />
+              <Legend />
+              <Area
+                type="monotone"
+                dataKey="revenue"
+                stroke="#10b981"
+                fillOpacity={1}
+                fill="url(#colorRevenue)"
+                name="รายได้"
+              />
+              <Area
+                type="monotone"
+                dataKey="cost"
+                stroke="#ef4444"
+                fillOpacity={1}
+                fill="url(#colorCost)"
+                name="ต้นทุน"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Campaign Performance Chart */}
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h3 className="mb-6 text-lg font-bold text-gray-800">🎯 ประสิทธิภาพแคมเปญ</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart
+              data={[
+                { platform: 'Facebook', roi: 125, spent: 15000 },
+                { platform: 'Google', roi: 98, spent: 12000 },
+                { platform: 'TikTok', roi: 156, spent: 8000 },
+                { platform: 'Instagram', roi: 87, spent: 10000 },
+              ]}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="platform" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                }}
+              />
+              <Legend />
+              <Bar dataKey="roi" fill="#8b5cf6" name="ROI (%)" radius={[8, 8, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Customer Distribution */}
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h3 className="mb-6 text-lg font-bold text-gray-800">👥 กลุ่มลูกค้า</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={[
+                  { name: 'ลูกค้าใหม่', value: analytics.customers.new },
+                  { name: 'ลูกค้าเก่า', value: analytics.customers.returning },
+                ]}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                outerRadius={100}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                <Cell fill="#10b981" />
+                <Cell fill="#3b82f6" />
+              </Pie>
+              <Tooltip />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Daily Profit Trend */}
+        <div className="rounded-xl bg-white p-6 shadow-sm">
+          <h3 className="mb-6 text-lg font-bold text-gray-800">💰 กำไรรายวัน (7 วันล่าสุด)</h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart
+              data={generateDailyProfitData()}
+              margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="day" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                }}
+              />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="profit"
+                stroke="#10b981"
+                strokeWidth={3}
+                dot={{ fill: '#10b981', strokeWidth: 2, r: 5 }}
+                name="กำไร (฿)"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
     </div>
   );
+}
+
+// Helper functions for generating chart data
+function generateTrendData(period: string) {
+  const baseData = {
+    day: [
+      { name: '00:00', revenue: 0, cost: 0 },
+      { name: '04:00', revenue: 2000, cost: 1200 },
+      { name: '08:00', revenue: 5000, cost: 3000 },
+      { name: '12:00', revenue: 12000, cost: 7000 },
+      { name: '16:00', revenue: 18000, cost: 10000 },
+      { name: '20:00', revenue: 24000, cost: 14000 },
+      { name: '23:59', revenue: 28000, cost: 16000 },
+    ],
+    week: [
+      { name: 'จันทร์', revenue: 25000, cost: 15000 },
+      { name: 'อังคาร', revenue: 32000, cost: 19000 },
+      { name: 'พุธ', revenue: 28000, cost: 17000 },
+      { name: 'พฤหัส', revenue: 35000, cost: 20000 },
+      { name: 'ศุกร์', revenue: 42000, cost: 24000 },
+      { name: 'เสาร์', revenue: 48000, cost: 27000 },
+      { name: 'อาทิตย์', revenue: 45000, cost: 26000 },
+    ],
+    month: [
+      { name: 'สัปดาห์ 1', revenue: 120000, cost: 70000 },
+      { name: 'สัปดาห์ 2', revenue: 145000, cost: 85000 },
+      { name: 'สัปดาห์ 3', revenue: 132000, cost: 78000 },
+      { name: 'สัปดาห์ 4', revenue: 158000, cost: 92000 },
+    ],
+    year: [
+      { name: 'ม.ค.', revenue: 480000, cost: 280000 },
+      { name: 'ก.พ.', revenue: 520000, cost: 305000 },
+      { name: 'มี.ค.', revenue: 545000, cost: 320000 },
+      { name: 'เม.ย.', revenue: 498000, cost: 295000 },
+      { name: 'พ.ค.', revenue: 580000, cost: 340000 },
+      { name: 'มิ.ย.', revenue: 620000, cost: 365000 },
+      { name: 'ก.ค.', revenue: 595000, cost: 350000 },
+      { name: 'ส.ค.', revenue: 640000, cost: 375000 },
+      { name: 'ก.ย.', revenue: 615000, cost: 360000 },
+      { name: 'ต.ค.', revenue: 670000, cost: 390000 },
+      { name: 'พ.ย.', revenue: 690000, cost: 405000 },
+      { name: 'ธ.ค.', revenue: 720000, cost: 420000 },
+    ],
+  };
+
+  return baseData[period as keyof typeof baseData] || baseData.month;
+}
+
+function generateDailyProfitData() {
+  const days = ['จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์', 'อาทิตย์'];
+  return days.map((day) => ({
+    day,
+    profit: Math.floor(Math.random() * 20000) + 5000,
+  }));
 }

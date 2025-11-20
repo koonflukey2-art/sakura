@@ -2,9 +2,11 @@
 
 import { useAuthStore } from '@/store/auth';
 import { Package, Wallet, ShoppingCart, TrendingUp } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
+  const router = useRouter();
 
   const stats = [
     {
@@ -66,17 +68,26 @@ export default function DashboardPage() {
       <div className="rounded-xl bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-xl font-bold text-gray-800">การดำเนินการด่วน</h2>
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <button className="rounded-lg border-2 border-sakura-200 bg-sakura-50 px-6 py-4 text-left transition hover:border-sakura-400">
+          <button
+            onClick={() => router.push('/dashboard/orders')}
+            className="rounded-lg border-2 border-sakura-200 bg-sakura-50 px-6 py-4 text-left transition hover:border-sakura-400 hover:shadow-md"
+          >
             <h3 className="font-semibold text-sakura-700">เพิ่มคำสั่งซื้อใหม่</h3>
             <p className="mt-1 text-sm text-sakura-600">สร้างคำสั่งซื้อใหม่อย่างรวดเร็ว</p>
           </button>
 
-          <button className="rounded-lg border-2 border-blue-200 bg-blue-50 px-6 py-4 text-left transition hover:border-blue-400">
+          <button
+            onClick={() => router.push('/dashboard/stock')}
+            className="rounded-lg border-2 border-blue-200 bg-blue-50 px-6 py-4 text-left transition hover:border-blue-400 hover:shadow-md"
+          >
             <h3 className="font-semibold text-blue-700">ตรวจสอบสต๊อก</h3>
             <p className="mt-1 text-sm text-blue-600">ดูสินค้าคงคลังและสต๊อกที่ใกล้หมด</p>
           </button>
 
-          <button className="rounded-lg border-2 border-green-200 bg-green-50 px-6 py-4 text-left transition hover:border-green-400">
+          <button
+            onClick={() => router.push('/dashboard/analytics')}
+            className="rounded-lg border-2 border-green-200 bg-green-50 px-6 py-4 text-left transition hover:border-green-400 hover:shadow-md"
+          >
             <h3 className="font-semibold text-green-700">ดูรายงาน</h3>
             <p className="mt-1 text-sm text-green-600">วิเคราะห์ยอดขายและกำไร</p>
           </button>
