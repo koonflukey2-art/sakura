@@ -1,3 +1,9 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
+// ⚠️ CRITICAL: Load .env FIRST before anything else
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 import { logger } from '../utils/logger';
 
 interface Config {
