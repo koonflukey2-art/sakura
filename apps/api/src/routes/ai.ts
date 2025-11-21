@@ -9,14 +9,6 @@ import { logger } from '../utils/logger';
 
 const router = Router();
 
-// Initialize AI clients from environment (fallback)
-const defaultOpenAI = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null;
-const defaultGenAI = process.env.GEMINI_API_KEY
-  ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-  : null;
-
 // Validation schema
 const aiExecuteSchema = z.object({
   provider: z.enum(['gpt', 'gemini']).default('gpt'),
@@ -63,15 +55,18 @@ async function executeAI(
 ): Promise<string> {
   try {
     if (provider === 'gpt') {
-      // Use custom API key from request, or fall back to default
+      // Use custom API key from request, or fall back to environment variable
       const apiKey = customApiKey || process.env.OPENAI_API_KEY;
 
       if (!apiKey) {
-        throw new AppError(500, 'OpenAI API key not configured');
+        throw new AppError(
+          401,
+          'OpenAI API key not configured. กรุณาตั้งค่า API Key ที่หน้า Settings'
+        );
       }
 
-      // Create client with custom API key if provided
-      const client = customApiKey ? new OpenAI({ apiKey: customApiKey }) : defaultOpenAI!;
+      // Always create a new client to avoid null reference errors
+      const client = new OpenAI({ apiKey });
 
       const completion = await client.chat.completions.create({
         model: 'gpt-4-turbo-preview',
@@ -84,29 +79,49 @@ async function executeAI(
       });
 
       return completion.choices[0]?.message?.content || 'No response';
-    } else {
-      // Use custom API key from request, or fall back to default
+    } else if (provider === 'gemini') {
+      // Use custom API key from request, or fall back to environment variable
       const apiKey = customApiKey || process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
-        throw new AppError(500, 'Gemini API key not configured');
+        throw new AppError(
+          401,
+          'Gemini API key not configured. กรุณาตั้งค่า API Key ที่หน้า Settings'
+        );
       }
 
-      // Create client with custom API key if provided
-      const client = customApiKey
-        ? new GoogleGenerativeAI(customApiKey)
-        : defaultGenAI!;
-
+      // Always create a new client to avoid null reference errors
+      const client = new GoogleGenerativeAI(apiKey);
       const model = client.getGenerativeModel({ model: 'gemini-pro' });
+
       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
 
       return response.text();
     }
+
+    throw new AppError(400, 'Invalid AI provider');
   } catch (error: any) {
-    logger.error(`AI execution error: ${error.message}`);
-    throw new AppError(500, `AI service error: ${error.message}`);
+    // Log detailed error information
+    logger.error(`AI execution error [${provider}]:`, {
+      message: error.message,
+      stack: error.stack,
+      apiKeyPresent: !!customApiKey,
+    });
+
+    // Return user-friendly error messages
+    if (error instanceof AppError) {
+      throw error;
+    } else if (error.message?.includes('API key')) {
+      throw new AppError(401, 'API key ไม่ถูกต้อง กรุณาตรวจสอบที่หน้า Settings');
+    } else if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+      throw new AppError(429, 'API quota หมด หรือเกินขีดจำกัด กรุณาลองใหม่ภายหลัง');
+    } else if (error.message?.includes('Invalid')) {
+      throw new AppError(400, `คำขอไม่ถูกต้อง: ${error.message}`);
+    } else {
+      throw new AppError(500, `เกิดข้อผิดพลาดในการเรียกใช้ AI: ${error.message}`);
+    }
   }
 }
 
