@@ -67,7 +67,7 @@ async function executeAI(
         throw new AppError(500, 'Gemini API key not configured');
       }
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
       const result = await model.generateContent(fullPrompt);
       const response = await result.response;
