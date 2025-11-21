@@ -2,6 +2,7 @@
 
 import { useAuthStore } from '@/store/auth';
 import { Package, Wallet, ShoppingCart, TrendingUp } from 'lucide-react';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -37,11 +38,28 @@ export default function DashboardPage() {
     },
   ];
 
+  const dashboardData = {
+    totalRevenue: 46730,
+    totalProfit: 12340,
+    lowStockItems: 5,
+    remainingBudget: 450000,
+    topProducts: ['สินค้า A', 'สินค้า B', 'สินค้า C'],
+    recentTrend: 'ยอดขายเพิ่มขึ้น 12.5% จากเมื่อวาน'
+  };
+
   return (
     <div>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800">สวัสดี, {user?.name}</h1>
-        <p className="mt-2 text-gray-600">ภาพรวมธุรกิจของคุณวันนี้</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">สวัสดี, {user?.name}</h1>
+          <p className="mt-2 text-gray-600">ภาพรวมธุรกิจของคุณวันนี้</p>
+        </div>
+        <AIAnalysisButton
+          page="dashboard"
+          action="analyze_overview"
+          data={dashboardData}
+          buttonText="ให้ AI วิเคราะห์ภาพรวม"
+        />
       </div>
 
       {/* Stats Grid */}

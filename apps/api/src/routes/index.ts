@@ -9,6 +9,7 @@ import campaignRoutes from './campaigns';
 import analyticsRoutes from './analytics';
 import notificationRoutes from './notifications';
 import aiRoutes from './ai';
+import facebookAdsRoutes from './facebook-ads';
 
 const router = Router();
 
@@ -22,5 +23,6 @@ router.use('/campaigns', campaignRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/ai', aiRoutes);
+router.use('/facebook-ads', facebookAdsRoutes);
 
 export default router;

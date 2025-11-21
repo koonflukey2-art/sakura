@@ -13,7 +13,11 @@ import {
   TestTube,
   X,
   Eye,
+  Zap,
+  Megaphone,
+  Lightbulb,
 } from 'lucide-react';
+import { AIAnalysisButton } from '@/components/AIAnalysisButton';
 
 interface Campaign {
   id: string;
@@ -241,13 +245,32 @@ Conversions: ${campaign.conversions.toLocaleString()}
           <h1 className="text-3xl font-bold text-sakura-900">แคมเปญโฆษณา</h1>
           <p className="text-gray-600 mt-2">จัดการแคมเปญโฆษณาและวิเคราะห์ผลลัพธ์</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 flex-wrap">
+          <AIAnalysisButton
+            page="campaigns"
+            action="generate_campaign_ideas"
+            data={{ currentCampaigns: campaigns.length, platforms: ['FACEBOOK', 'GOOGLE', 'TIKTOK'] }}
+            buttonText="AI สร้างไอเดีย"
+          />
+          <AIAnalysisButton
+            page="campaigns"
+            action="analyze_roi"
+            data={{ campaigns: campaigns.map(c => ({ name: c.name, spent: c.spent, revenue: c.revenue, roi: calculateMetrics(c).roi })) }}
+            buttonText="AI วิเคราะห์ ROI"
+          />
           <button
             onClick={handleTestLaunch}
             className="bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 flex items-center gap-2"
           >
             <TestTube className="w-5 h-5" />
             ทดสอบยิง
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-md hover:opacity-90 flex items-center gap-2"
+          >
+            <Zap className="w-5 h-5" />
+            ยิงแอดอัตโนมัติ
           </button>
           <button
             onClick={() => setShowCreateModal(true)}
