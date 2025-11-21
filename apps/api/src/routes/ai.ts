@@ -69,7 +69,7 @@ async function executeAI(
       const client = new OpenAI({ apiKey });
 
       const completion = await client.chat.completions.create({
-        model: 'gpt-4-turbo-preview',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
@@ -92,7 +92,9 @@ async function executeAI(
 
       // Always create a new client to avoid null reference errors
       const client = new GoogleGenerativeAI(apiKey);
-      const model = client.getGenerativeModel({ model: 'gemini-pro' });
+      
+      // ใช้ gemini-1.5-flash (เวอร์ชันที่ใช้งานได้กับ API key นี้)
+      const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;
       const result = await model.generateContent(fullPrompt);

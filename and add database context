@@ -1,0 +1,24 @@
+[1mdiff --git a/apps/api/src/routes/ai.ts b/apps/api/src/routes/ai.ts[m
+[1mindex d7e5415..ef21bb7 100644[m
+[1m--- a/apps/api/src/routes/ai.ts[m
+[1m+++ b/apps/api/src/routes/ai.ts[m
+[36m@@ -69,7 +69,7 @@[m [masync function executeAI([m
+       const client = new OpenAI({ apiKey });[m
+ [m
+       const completion = await client.chat.completions.create({[m
+[31m-        model: 'gpt-4-turbo-preview',[m
+[32m+[m[32m        model: 'gpt-4o-mini',[m
+         messages: [[m
+           { role: 'system', content: systemPrompt },[m
+           { role: 'user', content: userPrompt },[m
+[36m@@ -92,7 +92,9 @@[m [masync function executeAI([m
+ [m
+       // Always create a new client to avoid null reference errors[m
+       const client = new GoogleGenerativeAI(apiKey);[m
+[31m-      const model = client.getGenerativeModel({ model: 'gemini-pro' });[m
+[32m+[m[41m      [m
+[32m+[m[32m      // ใช้ gemini-1.5-flash (เวอร์ชันที่ใช้งานได้กับ API key นี้)[m
+[32m+[m[32m      const model = client.getGenerativeModel({ model: 'gemini-1.5-flash' });[m
+ [m
+       const fullPrompt = `${systemPrompt}\n\n${userPrompt}`;[m
+       const result = await model.generateContent(fullPrompt);[m

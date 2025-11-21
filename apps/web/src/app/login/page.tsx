@@ -2,120 +2,120 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import Link from 'next/link';
-import { api } from '@/lib/api';
-import { useAuthStore } from '@/store/auth';
 import { toast } from 'sonner';
 
-const loginSchema = z.object({
-  email: z.string().email('กรุณากรอกอีเมลให้ถูกต้อง'),
-  password: z.string().min(6, 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'),
-});
-
-type LoginForm = z.infer<typeof loginSchema>;
-
 export default function LoginPage() {
-  const router = useRouter();
-  const { setAuth } = useAuthStore();
-  const [error, setError] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const router = useRouter();
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const onSubmit = async (data: LoginForm) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     setError('');
 
     try {
-      const response = await api.post('/auth/login', data);
-      const { token, user } = response.data;
+      const response = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      setAuth(user, token);
-      toast.success(`ยินดีต้อนรับ ${user.name}! 🎉`);
-      router.push('/dashboard');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.error || 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
-      setError(errorMessage);
-      toast.error(errorMessage);
+      const data = await response.json();
+
+      if (response.ok) {
+        // บันทึก token ใน localStorage
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // ตั้งค่า cookie สำหรับ middleware
+        document.cookie = `token=${data.token}; path=/; max-age=604800; SameSite=Lax`;
+        
+        // แสดง toast สำเร็จ
+        toast.success(`ยินดีต้อนรับ ${data.user.name}!`);
+        
+        // Redirect ไป dashboard (ใช้ window.location เพื่อ force refresh)
+        window.location.href = '/dashboard';
+      } else {
+        // แสดง toast error
+        toast.error(data.error || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        setError(data.error || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+      setError('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-sakura-50 to-sakura-100 px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="mb-2 text-4xl font-bold text-sakura-600">🌸 Sakura</h1>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
+      <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-pink-600 mb-2">🌸 Sakura</h1>
           <p className="text-gray-600">ระบบจัดการธุรกิจแบบครบวงจร</p>
         </div>
 
-        <div className="rounded-2xl bg-white p-8 shadow-xl">
-          <h2 className="mb-6 text-2xl font-bold text-gray-800">เข้าสู่ระบบ</h2>
+        <h2 className="text-2xl font-semibold mb-6">เข้าสู่ระบบ</h2>
 
-          {error && (
-            <div className="mb-4 rounded-lg bg-red-50 p-4 text-sm text-red-600">{error}</div>
-          )}
-
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">อีเมล</label>
-              <input
-                type="email"
-                {...register('email')}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
-                placeholder="your@email.com"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-700">รหัสผ่าน</label>
-              <input
-                type="password"
-                {...register('password')}
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 focus:border-sakura-500 focus:outline-none focus:ring-2 focus:ring-sakura-200"
-                placeholder="••••••"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-sakura-500 px-4 py-3 font-semibold text-white transition hover:bg-sakura-600 disabled:opacity-50"
-            >
-              {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              ยังไม่มีบัญชี?{' '}
-              <Link href="/register" className="font-semibold text-sakura-600 hover:text-sakura-700">
-                สมัครสมาชิก
-              </Link>
-            </p>
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded mb-4">
+            {error}
           </div>
-        </div>
+        )}
 
-        <div className="mt-4 text-center text-sm text-gray-500">
-          <p>Demo accounts:</p>
-          <p>Admin: admin@sakura.com / admin123</p>
-          <p>Stock Staff: stock@sakura.com / staff123</p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">อีเมล</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:outline-none"
+              placeholder="your@email.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-2">รหัสผ่าน</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-pink-500 focus:outline-none"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-pink-500 hover:bg-pink-600 text-white py-3 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+          </button>
+        </form>
+
+        <p className="text-center text-sm text-gray-600 mt-6">
+          ยังไม่มีบัญชี?{' '}
+          <a href="/register" className="text-pink-600 hover:underline font-medium">
+            สมัครสมาชิก
+          </a>
+        </p>
+
+        <div className="mt-8 p-4 bg-blue-50 rounded-lg">
+          <p className="text-sm text-blue-800 font-medium mb-2">Demo Accounts:</p>
+          <p className="text-xs text-blue-700">
+            <strong>Admin:</strong> admin@sakura.com / admin123
+          </p>
         </div>
       </div>
     </div>
