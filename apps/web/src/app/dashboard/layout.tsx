@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!_hasHydrated) return;
 
     // ถ้า hydrate เสร็จแล้วและไม่ได้ล็อกอิน ให้ redirect ไป login
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !localStorage.getItem('token')) {
       router.push('/login');
     }
   }, [isAuthenticated, _hasHydrated, router]);
@@ -132,7 +132,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     );
   }
 
-  if (!isAuthenticated || !user) {
+  // Check if we have token in localStorage as fallback
+  const hasToken = typeof window !== 'undefined' && localStorage.getItem('token');
+
+  if (!isAuthenticated && !hasToken) {
     return null;
   }
 
