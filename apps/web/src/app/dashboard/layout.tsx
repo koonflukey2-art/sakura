@@ -14,6 +14,8 @@ import {
   Megaphone,
   Bell,
   LogOut,
+  Rocket,
+  Settings,
 } from 'lucide-react';
 
 const menuItems = [
@@ -24,6 +26,8 @@ const menuItems = [
   { icon: Users, label: 'ลูกค้า', href: '/dashboard/customers', roles: ['ADMIN', 'STAFF_STOCK', 'STAFF_MARKETING'] },
   { icon: BarChart3, label: 'วิเคราะห์', href: '/dashboard/analytics', roles: ['ADMIN', 'STAFF_MARKETING'] },
   { icon: Megaphone, label: 'แคมเปญ', href: '/dashboard/campaigns', roles: ['ADMIN', 'STAFF_MARKETING'] },
+  { icon: Rocket, label: 'ยิงแอดอัตโนมัติ', href: '/dashboard/auto-launch', roles: ['ADMIN', 'STAFF_MARKETING'] },
+  { icon: Settings, label: 'จัดการผู้ใช้', href: '/dashboard/users', roles: ['ADMIN'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

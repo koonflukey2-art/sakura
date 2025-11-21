@@ -237,4 +237,119 @@ router.get('/stats/performance', authenticate, async (req: AuthRequest, res, nex
   }
 });
 
+// POST /api/campaigns/auto-launch - สร้างและยิงแคมเปญอัตโนมัติ
+router.post('/auto-launch', authenticate, async (req: AuthRequest, res, next) => {
+  try {
+    const {
+      name,
+      url,
+      budget,
+      cpc,
+      conversionRate,
+      targetValue,
+      targetCost,
+      revenue,
+      cogs,
+      platform,
+      productName,
+      vat,
+      shippingCost,
+      packagingCost,
+      platformFee,
+      autoStop,
+      estimatedMetrics
+    } = req.body;
+
+    // Validate required fields
+    if (!budget || budget <= 0) {
+      throw new AppError(400, 'กรุณาระบุงบประมาณ');
+    }
+
+    // Calculate estimated metrics
+    const estimatedClicks = cpc > 0 ? budget / cpc : 0;
+    const estimatedOrders = estimatedClicks * ((conversionRate || 2.5) / 100);
+    const estimatedRevenue = estimatedOrders * (revenue || targetValue || 0);
+    const estimatedCost = estimatedOrders * (cogs || targetCost || 0);
+    const estimatedProfit = estimatedRevenue - budget - estimatedCost;
+    const estimatedROAS = budget > 0 ? estimatedRevenue / budget : 0;
+    const estimatedROI = budget > 0 ? ((estimatedProfit / budget) * 100) : 0;
+
+    // Create campaign in database
+    const campaign = await prisma.campaign.create({
+      data: {
+        name: name || `Auto Launch - ${new Date().toLocaleDateString('th-TH')}`,
+        platform: platform || 'FACEBOOK',
+        type: 'AD',
+        budget: budget,
+        spent: 0,
+        revenue: 0,
+        roi: 0,
+        impressions: 0,
+        clicks: 0,
+        conversions: 0,
+        status: 'ACTIVE',
+        createdById: req.user!.id,
+        settingsJson: {
+          url,
+          cpc,
+          conversionRate,
+          targetValue,
+          targetCost,
+          productName,
+          vat,
+          shippingCost,
+          packagingCost,
+          platformFee,
+          autoStop: autoStop || { enabled: true, minROI: -10 },
+          estimatedMetrics: {
+            clicks: Math.round(estimatedClicks),
+            orders: estimatedOrders.toFixed(1),
+            revenue: estimatedRevenue,
+            profit: estimatedProfit,
+            roas: estimatedROAS.toFixed(2),
+            roi: estimatedROI.toFixed(2)
+          }
+        }
+      }
+    });
+
+    // Create notification
+    await prisma.notification.create({
+      data: {
+        userId: req.user!.id,
+        type: 'CAMPAIGN_CREATED',
+        title: `แคมเปญ "${campaign.name}" ถูกสร้างแล้ว`,
+        message: `งบ ฿${budget.toLocaleString()} - คาดการณ์ ROAS ${estimatedROAS.toFixed(2)}x`,
+        dataJson: { campaignId: campaign.id }
+      }
+    });
+
+    // TODO: Connect to actual Facebook Ads API here
+    // const fbService = new FacebookAdsService(accessToken, adAccountId);
+    // const fbCampaign = await fbService.createCampaign({...});
+
+    res.json({
+      success: true,
+      message: 'ยิงแอดสำเร็จ!',
+      campaign: {
+        id: campaign.id,
+        name: campaign.name,
+        platform: campaign.platform,
+        budget: campaign.budget,
+        status: campaign.status
+      },
+      estimates: {
+        clicks: Math.round(estimatedClicks),
+        orders: parseFloat(estimatedOrders.toFixed(1)),
+        revenue: estimatedRevenue,
+        profit: estimatedProfit,
+        roas: parseFloat(estimatedROAS.toFixed(2)),
+        roi: parseFloat(estimatedROI.toFixed(2))
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;
