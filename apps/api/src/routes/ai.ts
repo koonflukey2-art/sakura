@@ -264,19 +264,25 @@ router.post('/execute', authenticate, async (req: AuthRequest, res, next) => {
   }
 });
 
-// GET /api/ai/logs - ดึงประวัติการใช้ AI (เฉพาะ ADMIN)
-router.get('/logs', authenticate, authorize(UserRole.ADMIN), async (req: AuthRequest, res, next) => {
+// GET /api/ai/logs - ดึงประวัติการใช้ AI
+router.get('/logs', authenticate, async (req: AuthRequest, res, next) => {
   try {
     const { page, userId, limit = '50' } = req.query;
 
     const where: any = {};
 
-    if (page) {
-      where.page = page;
+    // If not ADMIN, can only view own logs
+    if (req.user!.role !== UserRole.ADMIN) {
+      where.userId = req.user!.id;
+    } else {
+      // ADMIN can filter by userId if provided
+      if (userId) {
+        where.userId = userId;
+      }
     }
 
-    if (userId) {
-      where.userId = userId;
+    if (page) {
+      where.page = page;
     }
 
     const logs = await prisma.aiLog.findMany({
