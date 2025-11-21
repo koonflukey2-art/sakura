@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/auth';
 import Link from 'next/link';
-import NotificationBell from '@/components/NotificationBell';
 import {
   LayoutDashboard,
   Package,
@@ -13,7 +12,7 @@ import {
   Users,
   BarChart3,
   Megaphone,
-  Settings,
+  Bell,
   LogOut,
 } from 'lucide-react';
 
@@ -25,7 +24,6 @@ const menuItems = [
   { icon: Users, label: 'ลูกค้า', href: '/dashboard/customers', roles: ['ADMIN', 'STAFF_STOCK', 'STAFF_MARKETING'] },
   { icon: BarChart3, label: 'วิเคราะห์', href: '/dashboard/analytics', roles: ['ADMIN', 'STAFF_MARKETING'] },
   { icon: Megaphone, label: 'แคมเปญ', href: '/dashboard/campaigns', roles: ['ADMIN', 'STAFF_MARKETING'] },
-  { icon: Settings, label: 'จัดการผู้ใช้', href: '/dashboard/users', roles: ['ADMIN'] },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -93,15 +91,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main Content */}
       <div className="ml-64 flex-1">
-        {/* Header */}
-        <header className="sticky top-0 z-30 bg-white border-b border-gray-200 px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              ยินดีต้อนรับ, <span className="font-semibold text-gray-900">{user.name || user.email}</span>
-            </div>
-            <NotificationBell />
-          </div>
-        </header>
         <main className="p-8">{children}</main>
       </div>
     </div>
